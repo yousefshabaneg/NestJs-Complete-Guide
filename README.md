@@ -67,7 +67,7 @@
 ## Start the Nest app
 
 ```bash
-npx ts-node-dev src/main.ts
+$ npx ts-node-dev src/main.ts
 ```
 
 ## Naming Convention
