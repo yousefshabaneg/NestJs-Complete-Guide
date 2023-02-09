@@ -213,6 +213,54 @@ export class MessagesService {
 
 > So if you feel that way, totally fine. But I can't tell you without a doubt, is that testing your application when you're making use of dependency injection and its entire inversion of control technique, testing your app is going to be far easier, a lot easier. So eventually when we start writing tests around our application, we're going to see that testing individual classes inside of our app is going to be very simple and straightforward compared to if we were not making use of inversion of control and dependency injection. So just keep in mind that is really the payout. The payout of all this stuff is once we start writing tests. So that's kind of got a corollary to it, I'm assuming that you are interested in testing and you want to do testing.
 
+---
+
+# `Section-6: Modules, Dependency Injection`
+
+# Project Structure
+
+![Structure](di/pics/structure.png)
+
+## 1- Create Nest Project
+
+```bash
+$ nest new di
+```
+
+## 2-Generate four modules by cli: [computer, cpu, power, disk]
+
+```bash
+$ nest genrate module $(name)
+```
+
+## 3-Generate three services by cli: [cpu, power, disk]
+
+```bash
+$ nest genrate service $(name)
+```
+
+## 4-Generate The computer controller
+
+```bash
+$ nest genrate controller computer
+```
+
+# `Share code between different modules.`
+
+![Di](di/pics/di-1.png)
+
+## `DI inside one single module`
+
+![Di](di/pics/di-2.png)
+
+## `DI between different modules`
+
+![Di](di/pics/di-3.png)
+
+## `Wrap Up`
+
+![Di Revision](di/pics/di-rev.png)
+
 ## `FAQ`
 
 #### `Where can I find this course??`
