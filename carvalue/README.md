@@ -6,7 +6,7 @@
 ![Structure](pics/structure-2.png)
 ![Structure](pics/structure-3.png)
 
-# `Section-8: Persisting Data with TypeORM in Nest`
+# `Section-8-9: Persisting Data with TypeORM in Nest`
 
 ![TypeORM](pics/typeorm-1.png)
 
@@ -109,3 +109,109 @@ export class UsersController {
 > No hooks works in save api.
 
 ![Save and Create](pics/repo-2.png)
+
+# `Section 10 - Custom Data Serialization`
+
+### How to hide data in Nest
+
+#### 1- Nest Recommended Solution
+
+1. In 'user.entity.ts'
+
+```ts
++ import { Exclude } from 'class-transformer';
+```
+
+```ts
+  // Add Exclude Decorator to the field that it must be hidden.
+  + @Exclude()
+  @Column()
+  password: string;
+```
+
+2. In 'user.controller.ts'
+
+```ts
+import { UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+```
+
+```ts
+// Add this decorator in your route.
++ @UseInterceptors(ClassSerializerInterceptor)
+  @Get('/:id')
+  async findUser(@Param('id') id: string) {
+    const user = await this.usersService.findOne(+id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+```
+
+#### 2- More Complicated (much more flexible) Solution.
+
+> [What's the difference between Interceptor vs Middleware vs Filter in Nest.js?](https://stackoverflow.com/questions/54863655/whats-the-difference-between-interceptor-vs-middleware-vs-filter-in-nest-js)
+
+![Interceptor](pics/interceptor-1.png)
+![Interceptor](pics/interceptor-2.png)
+
+##### Our First Interceptor
+
+> create new interceptor 'serialize.interceptor.ts'
+
+```ts
+import {
+  UseInterceptors,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { plainToClass } from 'class-transformer';
+
+export class SerializeInterceptor implements NestInterceptor {
+  intercept(
+    context: ExecutionContext,
+    handler: CallHandler<any>,
+  ): Observable<any> | Promise<Observable<any>> {
+    return handler.handle().pipe(
+      map((data: any) => {
+        return plainToInstance(this.dto, data, {
+          excludeExtraneousValues: true,
+        });
+      }),
+    );
+  }
+}
+```
+
+> create new decorator to make use of our interceptor
+
+```ts
+export function Serialize(dto: any) {
+  return UseInterceptors(new SerializeInterceptor(dto));
+}
+```
+
+> Use it in our route or, or in our controller
+
+```ts
+@Serialize(UserDto)
+@Get('/:id')
+findUser(){}
+```
+
+### `How to make decorator accepts a class only ? (type safety)`
+
+> to avoid this @Serialize('Hello World')
+>
+> > Use interface for class definition
+
+```ts
+interface ClassConstructor {
+  new (...args: any[]): {};
+}
+function Serialize(dto: ClassConstructor){...}
+```
