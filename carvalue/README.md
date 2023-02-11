@@ -68,3 +68,44 @@ export class AppModule {}
 > More about: [Repository Api](https://typeorm.io/repository-api)
 
 ![TypeOrm](pics/typeorm-3.png)
+
+## `How to call the repository api and dependency injection in our service ?`
+
+![Use Repository](pics/repo-1.png)
+
+```ts
+//1) Update users.service.ts
+
++ import { Repository } from 'typeorm';
++ import { InjectRepository } from '@nestjs/typeorm';
++ import { User } from './user.entity';
+
+@Injectable()
+export class UsersService {
+  + constructor(@InjectRepository(User) private repo: Repository<User>) {}
+  //this @InjectRepository(User) for purpose of dependency injection with generics.
+
+  create(email: string, password: string) {
+    const user = this.repo.create({ email, password });
+    return this.repo.save(user);
+  }
+}
+
+//2) Update users.controller.ts
+
++ import { UsersService } from './users.service';
+
+@Controller('auth')
+export class UsersController {
+  + constructor(private usersService: UsersService) {}
+  @Post('/signup')
+  createUser(@Body() body: CreateUserDto) {
+    + this.usersService.create(body.email, body.password);
+  }
+}
+
+```
+
+> No hooks works in save api.
+
+![Save and Create](pics/repo-2.png)
