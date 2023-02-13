@@ -215,3 +215,257 @@ interface ClassConstructor {
 }
 function Serialize(dto: ClassConstructor){...}
 ```
+
+# `Section-11: Authentication From Scratch`
+
+### Create new Service 'Auth Service' to split out the authentication process from user service.
+
+#### This is the module after adding Auth Service.
+
+![Auth](pics/auth-1.png)
+
+> Create a new service class and inject it to the module 'auth.service.ts'
+>
+> > Then it will be able to use UserService as a di.
+
+```ts
+// auth.service.ts
+
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AuthService {
+  constructor(private usersService: UsersService) {}
+}
+```
+
+```ts
+// users.module.ts
+@Module({
+  + providers: [UsersService, AuthService],
+})
+export class UsersModule {}
+```
+
+### Signup flow : Hashing password with Salt.
+
+![Auth](pics/auth-2.png)
+
+> Signup functionality in the auth service class.
+
+```ts
+export class AuthService {
+  async signup(email: string, password: string) {
+    // Check if user email in use
+    const users = await this.usersService.find(email);
+    if (users.length) {
+      throw new BadRequestException('This email is already use.');
+    }
+
+    // Hash the user password
+    // First: Generate the Salt
+    const salt = randomBytes(8).toString('hex');
+
+    // Hash the salt and the password together using scrypt function as a buffer.
+    const hash = (await scrypt(password, salt, 32)) as Buffer;
+
+    // Join the hashed result and the salt together.
+    // you will split it in the sign in function to get the salt and hash.
+    // then with the login password you will hash it again with the given salt.
+    // then compare them if they equal = Authenticated user.
+    const result = `${salt}.${hash.toString('hex')}`;
+
+    // Create a new user and save it
+    const user = await this.usersService.create(email, result);
+
+    // return created user.
+    return user;
+  }
+
+  async signin(email: string, password: string) {
+    // Check if user email exist.
+    const [user] = await this.usersService.find(email);
+    if (!user) {
+      throw new BadRequestException('This email not exist.');
+    }
+
+    // Check if password is correct.
+    const [salt, storedHash] = user.password.split('.');
+    const hash = (await scrypt(password, salt, 32)) as Buffer;
+    if (storedHash !== hash.toString('hex')) {
+      throw new BadRequestException('Wrong Password.');
+    }
+
+    return user;
+  }
+}
+```
+
+## Common Auth System Features.
+
+![Auth](pics/auth-3.png)
+
+### How to create your own custom Param Decorator
+
+```ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const CurrentUser = createParamDecorator(
+  (data: any, context: ExecutionContext) => {
+    return 'Current User Custom Decorator';
+  },
+);
+```
+
+### Now, to make a Decorator to use to get current user, we need two things
+
+1. Session object to get the current userId, easy with context object.
+1. UserService class to get access to repo, hard because the dependency injection system.
+
+![Decorator](pics/dec-1.png)
+
+### `Solution for this problem: Create an Interceptor to hold those things, and make it inside di container and then decorator can use it.`
+
+![Decorator](pics/dec-2.png)
+
+## How to connect our create-user interceptor to controllers
+
+### 1- Controller Scoped.
+
+> ### Hint, Very tedious if we will use this interceptor in more than one controller.
+
+![Custom Interceptor](pics/custom-1.png)
+
+## Steps:
+
+> 1- Create Interceptor to add the current user to the request.
+
+```ts
+import {
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Injectable,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { UsersService } from '../users.service';
+
+@Injectable()
+export class CurrentUserInterceptor implements NestInterceptor {
+  constructor(private userService: UsersService) {}
+  async intercept(
+    context: ExecutionContext,
+    handler: CallHandler,
+  ): Promise<Observable<any>> {
+    const request = context.switchToHttp().getRequest();
+    const { userId } = request.session;
+
+    if (userId) {
+      const user = await this.userService.findOne(+userId);
+      request.currentUser = user;
+    }
+
+    return handler.handle();
+  }
+}
+```
+
+> 2- Inject the interceptor to the providers of 'users.module.ts'
+
+```ts
+//users.module.ts
+@Module({
+  ...,
+  providers: [..., CurrentUserInterceptor],
+});
+```
+
+> 3- Use the interceptor in our controller.
+
+```ts
+//users.controller.ts
+@UseInterceptors(CurrentUserInterceptor)
+export class UsersController {}
+```
+
+### 2- Globally Scoped.
+
+> ### Only single instance to all controllers.
+
+![Custom Interceptor](pics/custom-2.png)
+
+#### How to apply it globally?
+
+```ts
+// in users.module.ts
+
++ import { APP_INTERCEPTOR } from '@nestjs/core';
+
+@Module({
+  ...,
+  providers: [
+    ...,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CurrentUserInterceptor,
+    },
+  ],
+})
+export class UsersModule {}
+```
+
+---
+
+## How to make a `Guard`: to reject requests to certain handlers if the user is not signed in.
+
+![Guard](pics/guard-1.png)
+
+### As well as interceptors: we can apply guard in different locations:
+
+1. Globally for all controllers.
+1. Controller scope.
+1. Single Handler Scope.
+
+![Guard](pics/guard-2.png)
+
+### Steps to make our AuthGuard.
+
+> 1- Make your guard dir, and create 'auth.guard.ts'
+
+```ts
+import {
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
+
+export class AuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+    const { userId } = request.session;
+
+    if (!userId) {
+      throw new UnauthorizedException(
+        'Your are not authorized for this resource.',
+      );
+    }
+
+    return userId;
+  }
+}
+```
+
+> 2- In our controller:
+
+```ts
+import { UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../guards/auth.guard';
+// @UseGuards(AuthGuard) // apply guard for controller
+export class UsersController {
+  @Get('/whoami')
+  @UseGuards(AuthGuard) // apply guard for single handler
+  whoAmI(@CurrentUser() user: User) {
+    return user;
+  }
+}
+```
