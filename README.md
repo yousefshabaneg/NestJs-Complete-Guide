@@ -957,10 +957,64 @@ export class UsersController {
 }
 ```
 
+---
+
+# `Section-12: Unit Testing`
+
+![Unit Testing](carvalue/pics/test-1.png)
+
+## To make test of our 'Auth Service' functionality (signup, signin) we should have:
+
+1. A Copy of UsersService to use [find(), create()].
+1. The UsersService depends on 'UsersRepo', So it should have copy of it.
+1. The UsersRepo depends on 'SQLITE' and its configuration.
+
+![Unit Testing](carvalue/pics/test-2.png)
+
+## To make our test more straightforward we will use a trick
+
+### We're going to use the `dependency injection` system to avoid having to create all these different dependencies.
+
+### `Create your own fake 'UsersService'`
+
+![Unit Testing](carvalue/pics/test-3.png)
+![Unit Testing](carvalue/pics/test-4.png)
+![Unit Testing](carvalue/pics/test-5.png)
+
+```ts
+import { Test } from "@nestjs/testing";
+import { AuthService } from "./auth.service";
+import { User } from "./user.entity";
+import { UsersService } from "./users.service";
+
+it("can create an instance of auth service", async () => {
+  //Create a fake copy of users service.
+  const fakeUsersService: Partial<UsersService> = {
+    find: () => Promise.resolve([]),
+    create: (email: string, password: string) =>
+      Promise.resolve({ id: 1, email, password } as User),
+  };
+  const module = await Test.createTestingModule({
+    providers: [
+      AuthService,
+      {
+        provide: UsersService,
+        useValue: fakeUsersService,
+      },
+    ],
+  }).compile();
+
+  const service = module.get(AuthService);
+
+  expect(service).toBeDefined();
+});
+```
+
+![Unit Testing](carvalue/pics/test-6.png)
+![Unit Testing](carvalue/pics/test-7.png)
+
 ## `FAQ`
 
 #### `Where can I find this course??`
 
 You can find it on Udemy by following this link: [NestJS - Udemy](https://www.udemy.com/course/nestjs-the-complete-developers-guide)
-
----
