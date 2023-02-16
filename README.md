@@ -1013,6 +1013,151 @@ it("can create an instance of auth service", async () => {
 ![Unit Testing](carvalue/pics/test-6.png)
 ![Unit Testing](carvalue/pics/test-7.png)
 
+---
+
+# `Section-13: Integration Testing`
+
+![Integration Testing](carvalue/pics/integration-1.png)
+![Integration Testing](carvalue/pics/integration-2.png)
+
+### To solve the problem of : 'Test module cannot use session or pipe because these are created in main.ts file not in the app module... We can do this: '
+
+> ## First the ValidationPipe.
+
+1. ### Remove uses in the main.ts file
+
+```ts
+// Remove this block of code in bootstrap function >> main.ts
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+  })
+);
+```
+
+2. ### Add new provider in AppModule file.
+
+```ts
+import { ValidationPipe } from '@nestjs/common';
+import { APP_PIPE } from '@nestjs/core';
+
+providers: [
+    ...,
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({ whitelist: true }),
+    },
+  ],
+```
+
+> ## Second, Globally Scoped Middleware: 'Cookie-Session'.
+
+1. ### Remove uses in the main.ts file
+
+```ts
+// Remove this block of code in bootstrap function >> main.ts
+app.use(
+  cookieSession({
+    keys: ["secret-key"],
+  })
+);
+```
+
+2. ### Create new method in AppModule Class.
+
+```ts
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(cookieSession({ keys: ["secret-key"] })).forRoutes("*");
+  }
+}
+```
+
+### `Create two versions of our DB , one for development and another one for testing.`
+
+![Testing Database](carvalue/pics/db-1.png)
+![Testing Database](carvalue/pics/db-2.png)
+
+> #### You can solve this by using NODE_ENV variable to identify which environment you work on.
+
+```ts
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+    + database: process.env.NODE_ENV === 'test' ?
+      'test.sqlite' : 'db.sqlite',
+      ...
+    }),
+```
+
+## Recommended Solution: Environment Config.
+
+![App Config](carvalue/pics/db-3.png)
+
+### Go to next Section to read more
+
+---
+
+# `Section-14: Managing App Configuration`
+
+### 1- Install @nestjs/config npm package
+
+```bash
+$ npm install @nestjs/config
+```
+
+![App Config](carvalue/pics/env-1.png)
+![App Config](carvalue/pics/env-2.png)
+
+Stephen Grider Says:
+
+> ## Let me tell you what you and I are going to do. We're going to kind of forget the rules set up by the Dotenv docs people, we're not going to very strictly follow their rules. Instead, we're going to take the Nest recommendation. We are going to have more than one different file. We're going to have one specifically to be used during development of our application and one during testing of our application. So these different files are going to provide some different database names for this database property right here. We'll have one file. It says use a database name of DB_SQLITE. And then the other file will say use a database name of something like Test.SQLite or something like that. So, again, we are not strictly following the recommendations of env dOCS because I don't know, I'm just not really a big fan of that library myself, as you can tell, with all this invariant configuration stuff.
+
+## Create two files:
+
+1. ### .env.development
+1. ### .env.test
+
+### Then make your database configuration based on environment
+
+```ts
+
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    // Global your config variables.
+    // choose which file compiler use based on NODE_ENV variable.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: `.env.${process.env.NODE_ENV}`,
+    }),
+
+    // Add ConfigService to dependency container of typeorm module.
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        return {
+          type: 'sqlite',
+          database: config.get<string>('DB_NAME'),
+          entities: [User, Report],
+          synchronize: true,
+        };
+      },
+    }),
+    // Comment out this part.
+    // TypeOrmModule.forRoot({
+    //   type: 'sqlite',
+    //   database: process.env.NODE_ENV === 'test' ? 'test.sqlite' : 'db.sqlite',
+    //   entities: [User, Report],
+    //   synchronize: true,
+    // }),
+    ...,
+  ],
+  ...
+})
+
+```
+
 ## `FAQ`
 
 #### `Where can I find this course??`
