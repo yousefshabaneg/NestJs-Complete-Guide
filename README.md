@@ -24,10 +24,44 @@
 
 ---
 
-- This repository contains the entire NestJs learning journey.
+### Table of Contents
+
+| No. | Section                                                                                   |
+| --- | ----------------------------------------------------------------------------------------- |
+| 1   | [Course Introduction](#section-1-course-introduction)                                     |
+| 2   | [Scratch](#section-2-scratch)                                                             |
+| 3-5 | [NEST CLI: CRUD generator](#section-3-5-nest-cli-crud-generator)                          |
+| 6   | [Modules, Dependency Injection](#section-6-modules-dependency-injection)                  |
+| 7   | [Car Value Project](#section-7-car-value-project)                                         |
+| 8-9 | [Persisting Data with TypeORM in Nest](#section-8-9-persisting-data-with-typeorm-in-nest) |
+| 10  | [Custom Data Serialization](#section-10---custom-data-serialization)                      |
+| 11  | [Authentication From Scratch](#section-11-authentication-from-scratch)                    |
+| 12  | [Unit Testing](#section-12-unit-testing)                                                  |
+| 13  | [Integration Testing](#section-13-integration-testing)                                    |
+| 14  | [Managing App Configuration](#section-14-managing-app-configuration)                      |
+
+---
+
+# `Section-1: Course Introduction`
+
+- This repository contains the entire NestJs learning journey that is created By (**`Stephen Grider`**).
 - Build full featured backend APIs incredibly quickly with Nest.
 - TypeORM, and Typescript. Includes testing and deployment!.
-- This course is created By (**`Stephen Grider`**).
+- Deploy a feature-complete app to production
+- Write integration and unit tests to ensure your code is working
+- Use an API client to manually test your app
+- Make your code more reusable and testable with dependency injection
+- Use decorators to dramatically simplify your code
+- Build authentication and permissions systems from scratch
+- Tie different types of data together with TypeORM relationships
+- Use Guards to prevent unauthorized users from gaining access to sensitive data
+- Model your app's data using TypeORM entities
+
+## `FAQ`
+
+#### `Where can I find this course??`
+
+You can find it on Udemy here: [NestJS - Stephen Grider - Udemy](https://www.udemy.com/course/nestjs-the-complete-developers-guide)
 
 ---
 
@@ -78,7 +112,7 @@ $ npx ts-node-dev src/main.ts
 
 # `Section 3-5: NEST CLI: CRUD generator`
 
-# 1- Create Nest Project
+## 1- Create Nest Project
 
 ```bash
 $ nest new <name> [options]
@@ -91,7 +125,7 @@ $ nest new <name> [options]
 - Generate an entity class/interface to represent the resource data shape
 - Generate Data Transfer Objects (or inputs for GraphQL applications) to define how the data will be sent over the network
 
-# Pipes
+## Pipes
 
 ## Validation Pipe
 
@@ -135,7 +169,7 @@ $ nest new <name> [options]
 
 ---
 
-# Difference between Service and Repository
+## Difference between Service and Repository
 
 ![Service and Repository 1](messages/pics/service-repo-1.png)
 ![Service and Repository 2](messages/pics/service-repo-2.png)
@@ -181,7 +215,7 @@ export class MessagesService {
 }
 ```
 
-# BEST SOLUTION: REPOSITORY PATTERN
+## BEST SOLUTION: REPOSITORY PATTERN
 
 > Read this First: [Implementing a Generic Repository Pattern Using NestJS](https://betterprogramming.pub/implementing-a-generic-repository-pattern-using-nestjs-fb4db1b61cce)
 
@@ -217,7 +251,7 @@ export class MessagesService {
 
 # `Section-6: Modules, Dependency Injection`
 
-# Project Structure
+## Project Structure
 
 ![Structure](di/pics/structure.png)
 
@@ -245,7 +279,7 @@ $ nest genrate service $(name)
 $ nest genrate controller computer
 ```
 
-# `Share code between different modules.`
+## `Share code between different modules.`
 
 ![Di](di/pics/di-1.png)
 
@@ -265,227 +299,7 @@ $ nest genrate controller computer
 
 # `Section-7: Car Value Project`
 
-# Project Structure
-
-![Structure](carvalue/pics/structure-1.png)
-![Structure](carvalue/pics/structure-2.png)
-![Structure](carvalue/pics/structure-3.png)
-
-# `Section-8-9: Persisting Data with TypeORM in Nest`
-
-![TypeORM](carvalue/pics/typeorm-1.png)
-
-## How to create an entity ?
-
-![create an entity](carvalue/pics/typeorm-2.png)
-
-```ts
-//1) create user.entity.ts
-
-import { Entity, Column, PrimaryGeneratedColumn } from "typeorm";
-
-@Entity()
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
-  email: string;
-
-  @Column()
-  password: string;
-}
-```
-
-```ts
-//2) update users.module.ts
-+ import { TypeOrmModule } from '@nestjs/typeorm';
-+ import { User } from './user.entity';
-@Module({
-  + imports: [TypeOrmModule.forFeature([User])],
-})
-export class UsersModule {}
-```
-
-```ts
-//3) update parent: app.module.ts
-+ import { User } from './users/user.entity';
-@Module({
-  imports: [
-    TypeOrmModule.forRoot({
-      type: 'sqlite',
-      database: 'db.sqlite',
-    + entities: [User],
-      synchronize: true,
-    }),
-    UsersModule,
-    ReportsModule,
-  ],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-``
-```
-
-## `TypeOrm: Repository Api`
-
-> More about: [Repository Api](https://typeorm.io/repository-api)
-
-![TypeOrm](carvalue/pics/typeorm-3.png)
-
-## `How to call the repository api and dependency injection in our service ?`
-
-![Use Repository](carvalue/pics/repo-1.png)
-
-```ts
-//1) Update users.service.ts
-
-+ import { Repository } from 'typeorm';
-+ import { InjectRepository } from '@nestjs/typeorm';
-+ import { User } from './user.entity';
-
-@Injectable()
-export class UsersService {
-  + constructor(@InjectRepository(User) private repo: Repository<User>) {}
-  //this @InjectRepository(User) for purpose of dependency injection with generics.
-
-  create(email: string, password: string) {
-    const user = this.repo.create({ email, password });
-    return this.repo.save(user);
-  }
-}
-
-//2) Update users.controller.ts
-
-+ import { UsersService } from './users.service';
-
-@Controller('auth')
-export class UsersController {
-  + constructor(private usersService: UsersService) {}
-  @Post('/signup')
-  createUser(@Body() body: CreateUserDto) {
-    + this.usersService.create(body.email, body.password);
-  }
-}
-
-```
-
-> No hooks works in save api.
-
-![Save and Create](carvalue/pics/repo-2.png)
-
-# `Section 10 - Custom Data Serialization`
-
-### How to hide data in Nest
-
-#### 1- Nest Recommended Solution
-
-1. In 'user.entity.ts'
-
-```ts
-+ import { Exclude } from 'class-transformer';
-```
-
-```ts
-  // Add Exclude Decorator to the field that it must be hidden.
-  + @Exclude()
-  @Column()
-  password: string;
-```
-
-2. In 'user.controller.ts'
-
-```ts
-import { UseInterceptors, ClassSerializerInterceptor } from "@nestjs/common";
-```
-
-```ts
-// Add this decorator in your route.
-+ @UseInterceptors(ClassSerializerInterceptor)
-  @Get('/:id')
-  async findUser(@Param('id') id: string) {
-    const user = await this.usersService.findOne(+id);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return user;
-  }
-
-```
-
-#### 2- More Complicated (much more flexible) Solution.
-
-> [What's the difference between Interceptor vs Middleware vs Filter in Nest.js?](https://stackoverflow.com/questions/54863655/whats-the-difference-between-interceptor-vs-middleware-vs-filter-in-nest-js)
-
-![Interceptor](carvalue/pics/interceptor-1.png)
-![Interceptor](carvalue/pics/interceptor-2.png)
-
-##### Our First Interceptor
-
-> create new interceptor 'serialize.interceptor.ts'
-
-```ts
-import {
-  UseInterceptors,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from "@nestjs/common";
-import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
-import { plainToClass } from "class-transformer";
-
-export class SerializeInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    handler: CallHandler<any>
-  ): Observable<any> | Promise<Observable<any>> {
-    return handler.handle().pipe(
-      map((data: any) => {
-        return plainToInstance(this.dto, data, {
-          excludeExtraneousValues: true,
-        });
-      })
-    );
-  }
-}
-```
-
-> create new decorator to make use of our interceptor
-
-```ts
-export function Serialize(dto: any) {
-  return UseInterceptors(new SerializeInterceptor(dto));
-}
-```
-
-> Use it in our route or, or in our controller
-
-```ts
-@Serialize(UserDto)
-@Get('/:id')
-findUser(){}
-```
-
-### `How to make decorator accepts a class only ? (type safety)`
-
-> to avoid this @Serialize('Hello World')
->
-> > Use interface for class definition
-
-```ts
-interface ClassConstructor {
-  new (...args: any[]): {};
-}
-function Serialize(dto: ClassConstructor){...}
-```
-
----
-
-# `Section-7: Car Value Project`
-
-# Project Structure
+## Project Structure
 
 ![Structure](carvalue/pics/structure-1.png)
 ![Structure](carvalue/pics/structure-2.png)
@@ -1157,9 +971,3 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 })
 
 ```
-
-## `FAQ`
-
-#### `Where can I find this course??`
-
-You can find it on Udemy by following this link: [NestJS - Udemy](https://www.udemy.com/course/nestjs-the-complete-developers-guide)
