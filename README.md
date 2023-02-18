@@ -39,6 +39,7 @@
 | 12  | [Unit Testing](#section-12-unit-testing)                                                  |
 | 13  | [Integration Testing](#section-13-integration-testing)                                    |
 | 14  | [Managing App Configuration](#section-14-managing-app-configuration)                      |
+| 15  | [Relations with TypeORM](#section-15-relations-with-typeorm)                              |
 
 ---
 
@@ -1005,6 +1006,116 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 })
 
 ```
+
+## **[⬆ Back to Top](#table-of-contents)**
+
+---
+
+# `Section-15: Relations with TypeORM`
+
+## Requires Knowledge for Associations:
+
+![Relations](carvalue/pics/relations-1.png)
+![Relations](carvalue/pics/relations-2.png)
+
+## Steps to create an association in nestjs and typeorm:
+
+![Relations](carvalue/pics/relations-3.png)
+
+## Types of Relationships:
+
+## One-to-One Relationship:
+
+### It’s a relationship where a record in one entity (table) is associated with exactly one record in another entity (table).
+
+- Country - capital city: Each country has exactly one capital city. Each capital city is the capital of exactly one country.
+
+![Relations](carvalue/pics/types-1.png)
+
+## One-to-many / Many-to-one Relationship:
+
+### This kind of relationship means that one row in a table (usually called the parent table) can have a relationship with many rows in another table (usually called child table).
+
+- One customer may make several purchases, but each purchase is made by a single customer.
+
+![Relations](carvalue/pics/types-2.png)
+
+## Many-to-Many Relationship:
+
+### By definition, a many-to-many relationship is where more than one record in a table is related to more than one record in another table.
+
+- A typical example of a many-to many relationship is one between students and classes. A student can register for many classes, and a class can include many students.
+
+![Relations](carvalue/pics/types-3.png)
+
+---
+
+## Our App: Relationship between Reports and users:
+
+### One to many relationship.
+
+![Relations](carvalue/pics/reports-1.png)
+
+### OneToMany and ManyToOne Decorators.
+
+![Relations](carvalue/pics/reports-2.png)
+
+```ts
+// in user.entity.ts
+// Doesn't make a change in our Database
+
+class User {
+  @OneToMany(() => Report, (report) => report.user)
+  reports: Report[];
+}
+```
+
+```ts
+// in report.entity.ts
+// Create user_id column in reports table in Database.
+
+class Report {
+  @ManyToOne(() => User, (user) => user.reports)
+  user: User;
+}
+```
+
+```ts
+// in reports.service.ts
+
+export class ReportsService {
+  create(reportDto: CreateReportDto, user: User) {
+    const report = this.repo.create(reportDto);
+    report.user = user; // assign user to the report
+    return this.repo.save(report);
+  }
+}
+```
+
+```ts
+// in reports.controller.ts
+
+@Controller("reports")
+export class ReportsController {
+  @Post()
+  @UseGuards(AuthGuard)
+  @Serialize(ReportDto)
+  // to hide some information of user.: Serialize it --> hide password property
+  createReport(@Body() body: CreateReportDto, @CurrentUser() user: User) {
+    return this.reportsService.create(body, user);
+  }
+}
+```
+
+> ManyToOne: Create user_id column in reports table in Database.
+
+![Relations](pics/reports-3.png)
+
+### **Important** you should read these articles:
+
+- [I cannot understand the syntax of callback passed to the TypeORM Relations decorator](https://stackoverflow.com/questions/66409746/i-cannot-understand-the-syntax-of-callback-passed-to-the-typeorm-relations-decor)
+- [Circular Dependency TS Issue](https://github.com/Microsoft/TypeScript/issues/20361)
+- [Circular Type References in TypeScript](https://stackoverflow.com/questions/24444436/circular-type-references-in-typescript)
 
 ## **[⬆ Back to Top](#table-of-contents)**
 
