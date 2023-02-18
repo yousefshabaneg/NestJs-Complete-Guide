@@ -1109,7 +1109,7 @@ export class ReportsController {
 
 > ManyToOne: Create user_id column in reports table in Database.
 
-![Relations](pics/reports-3.png)
+![Relations](carvalue/pics/reports-3.png)
 
 ### **Important** you should read these articles:
 
