@@ -776,3 +776,161 @@ export class ReportsController {
 - [I cannot understand the syntax of callback passed to the TypeORM Relations decorator](https://stackoverflow.com/questions/66409746/i-cannot-understand-the-syntax-of-callback-passed-to-the-typeorm-relations-decor)
 - [Circular Dependency TS Issue](https://github.com/Microsoft/TypeScript/issues/20361)
 - [Circular Type References in TypeScript](https://stackoverflow.com/questions/24444436/circular-type-references-in-typescript)
+
+# `Section-16: A Basic Permissions System`
+
+## What is the difference between Authentication and Authorization?
+
+![Role-1](pics/admin-1.png)
+
+## Now we will build the **`Authorization`** in our App.
+
+### Very similar to our AuthGuard that we build here: [AuthGuard Implementation](#steps-to-make-our-authguard)
+
+![Role-1](pics/admin-2.png)
+
+### Creation of AdminGuard.
+
+```ts
+import { CanActivate, ExecutionContext } from '@nestjs/common';
+
+export class AdminGuard implements CanActivate {
+  canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+    if (!request.currentUser) {
+      return false;
+    }
+
+    return request.currentUser.admin;
+  }
+}
+```
+
+### Steps to make our AdminGuard.
+
+> 1- Create 'admin.guard.ts' in src/guards directory.
+
+```ts
+import { CanActivate, ExecutionContext } from '@nestjs/common';
+
+export class AdminGuard implements CanActivate {
+  canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+
+    if (!request.currentUser || !request.currentUser.admin) {
+      throw new UnauthorizedException(
+        'Your are Unauthorized for this resource.',
+      );
+    }
+
+    return true;
+  }
+}
+```
+
+> 2- In our reports controller:
+
+```ts
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '../guards/admin.guard';
+
+export class ReportsController {
+  @Patch('/:id')
+  @UseGuards(AdminGuard)
+  approveReport(@Param('id') id: string, @Body() body: ApproveReportDto) {
+    return this.reportsService.changeApproval(+id, body.approved);
+  }
+}
+```
+
+## Why this AdminGuard does not working ?
+
+### The issue is : The Guards execute before the interceptors, and we get our currentUser from the interceptor.
+
+### `The request Life Cycle`:
+
+![Role-1](pics/admin-3.png)
+
+### note: The interceptor can be executed before or after the Request Handler.
+
+![Role-1](pics/admin-4.png)
+
+## **Solution: We need to take our CurrentUserInterceptor and turn it into a `middleware` instead to be executed before the guards.**
+
+![Role-1](pics/admin-5.png)
+
+## So, now we will create the CurrentUserMiddleware instead of CurrentUserInterceptor
+
+> 1- Create 'current-user.middleware.ts' file inside users/middlewares directory
+
+```ts
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import { UsersService } from '../users.service';
+
+@Injectable()
+export class CurrentUserMiddleware implements NestMiddleware {
+  constructor(private usersService: UsersService) {}
+
+  async use(req: Request, res: Response, next: NextFunction) {
+    const { userId } = req.session || {};
+
+    if (userId) {
+      const user = await this.usersService.findOne(+userId);
+
+      // @ts-ignore
+      // this is cause an error: we will solve it later...
+      req.currentUser = user;
+    }
+
+    next();
+  }
+}
+```
+
+> 2- In users module class:
+
+### first remove all stuff related to CurrentUserInterceptor
+
+```ts
+// remove all this lines::
+import { CurrentUserInterceptor } from './interceptors/current-user.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+
+@Module({
+  // remove this dependency
+  {
+  provide: APP_INTERCEPTOR,
+  useClass: CurrentUserInterceptor,
+  }
+});
+```
+
+### Now, Apply our middleware in configure method
+
+```ts
+import { Module, MiddlewareConsumer } from '@nestjs/common';
+import { CurrentUserMiddleware } from './middlewares/current-user.middleware';
+
+export class UsersModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CurrentUserMiddleware).forRoutes('*');
+  }
+}
+```
+
+### Now we still have a problem in our Middleware class: 'req.currentUser':
+
+> Property 'currentUser' does not exist on type 'Request'.
+
+### Solution: by applying this code, now we add a new property to Request Interface of Express namespace.
+
+```ts
+declare global {
+  namespace Express {
+    interface Request {
+      currentUser?: User;
+    }
+  }
+}
+```
