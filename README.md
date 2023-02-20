@@ -41,6 +41,7 @@
 | 14  | [Managing App Configuration](#section-14-managing-app-configuration)                      |
 | 15  | [Relations with TypeORM](#section-15-relations-with-typeorm)                              |
 | 16  | [A Basic Permissions System](#section-16-a-basic-permissions-system)                      |
+| 17  | [Query Builders with TypeORM](#section-17-query-builders-with-typeorm)                    |
 
 ---
 
@@ -1280,7 +1281,11 @@ declare global {
 }
 ```
 
-## Create a QueryBuilder using TypeORM
+## **[⬆ Back to Top](#table-of-contents)**
+
+---
+
+# `Section-17: Query Builders with TypeORM`
 
 ```ts
 // get-estimate.dto.ts
