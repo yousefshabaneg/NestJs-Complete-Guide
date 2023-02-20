@@ -934,3 +934,78 @@ declare global {
   }
 }
 ```
+
+## Create a QueryBuilder using TypeORM
+
+```ts
+// get-estimate.dto.ts
+// Create this dto to validate the query string and transform it to the needed datatype.
+
+import {
+  IsLatitude,
+  IsLongitude,
+  IsNumber,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class GetEstimateDto {
+  @IsString()
+  make: string;
+
+  @IsString()
+  model: string;
+
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @Min(1930)
+  @Max(2050)
+  year: number;
+
+  @Transform(({ value }) => parseFloat(value))
+  @IsLongitude()
+  lng: number;
+
+  @Transform(({ value }) => parseFloat(value))
+  @IsLatitude()
+  lat: number;
+
+  @Transform(({ value }) => parseInt(value))
+  @IsNumber()
+  @Min(0)
+  @Max(1_000_000)
+  mileage: number;
+}
+```
+
+```ts
+// reports.service.ts
+// filter reports and get average of the top 3 results.
+
+  createEstimate({ make, model, lng, lat, year, mileage }: GetEstimateDto) {
+    return this.repo
+      .createQueryBuilder()
+      .select('AVG(price)', 'price')
+      .where('approved IS TRUE')
+      .andWhere('make = :make', { make })
+      .andWhere('model = :model', { model })
+      .andWhere('lng - :lng BETWEEN -5 AND  5', { lng })
+      .andWhere('lat - :lat BETWEEN -5 AND  5', { lat })
+      .andWhere('year - :year BETWEEN -3 AND  3', { year })
+      .orderBy('ABS(mileage - :mileage)', 'DESC')
+      .setParameters({ mileage })
+      .limit(3)
+      .getRawOne();
+  }
+```
+
+```ts
+// reports.controller.ts
+
+@Get()
+  getEstimate(@Query() query: GetEstimateDto) {
+    return this.reportsService.createEstimate(query);
+  }
+```
