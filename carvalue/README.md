@@ -12,6 +12,7 @@
 | 15  | [Relations with TypeORM](#section-15-relations-with-typeorm)                              |
 | 16  | [A Basic Permissions System](#section-16-a-basic-permissions-system)                      |
 | 17  | [Query Builders with TypeORM](#section-17-query-builders-with-typeorm)                    |
+| 18  | [Production Deployment](#Section-18-production-deployment)                                |
 
 ---
 
@@ -1025,4 +1026,121 @@ export class GetEstimateDto {
   getEstimate(@Query() query: GetEstimateDto) {
     return this.reportsService.createEstimate(query);
   }
+```
+
+# `Section-18: Production Deployment`
+
+![Production](pics/prod-1.png)
+
+## To use our config variables in AppModule class:
+
+### HUM, You are right, we will use our dependency injection container.
+
+```ts
+export class AppModule {
+  constructor(private configService: ConfigService) {}
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(cookieSession({ keys: [this.configService.get('COOKIE_KEY')] }))
+      .forRoutes('*');
+  }
+}
+```
+
+## Understanding the Synchronize Flag in TypeORM.
+
+### Synchronize makes the entity `sync` with the database every time you run your application. Hence, whenever you add columns to an entity, create a new table by creating a new entity, or remove columns from an existing table by modifying an entity `(made a migrations)` it will automatically update the database once the server is started.
+
+![Synchronize](pics/prod-2.png)
+
+## Dangers of Synchronize.
+
+### Even Though synchronization is a good option to synchronize your entity with the database, it is unsafe for production databases. Therefore migrations can be an alternative solution for safer migrations in production databases.
+
+## Stephen Grider Says about synchronize:
+
+> ### What kind of problem could ever possibly arise?
+>
+> Well, I want you to imagine a scenario where maybe you are making some changes to your code and maybe by mistake you delete some property off your user entity.
+>
+> Let's imagine that you then saved your entire project and deployed it off to a production environment. When your application starts up on that production server, it's going to connect to your production database type forums, then going to see your updated user entity. And it's going to notice that it no longer has a password property.
+>
+> So typeorm is going to automatically go into your production database and delete that entire password column. When that delete occurs, you have now lost data inside of your application. That is obviously really, really bad and definitely not something we would ever want to do.
+>
+> So the downside to using this synchronize flag of true is that you can very easily accidentally lose data inside of your production database the next time you deploy your app. So even though it can be really handy to use during development, because we can very quickly make changes to our database just by changing our different entity files, I highly recommend that you do not make use of synchronize true as soon as you start deploying your application to a production environment.
+> ![Synchronize](pics/prod-3.png)
+
+## Theory Behind Migrations
+
+> It is crucial to think about the structure of our database carefully. Even if we do that, the requirements that our application has to meet change. Because of the above, we rarely can avoid having to modify the structure of our database. When doing that, we need to be careful not to lose any existing data.
+>
+> With database migrations, we can define a set of controlled changes that aim to modify the structure of the data. They can include adding or removing tables, changing columns, or changing the data types, for example. While we could manually run SQL queries that make the necessary adjustments, this is not the optimal approach. Instead, we want our migrations to be easy to repeat across different application environments.
+>
+> Also, we need to acknowledge that modifying the structure of the database is a delicate process where things can go wrong and damage the existing data. Fortunately, writing database migrations includes committing them to the repository. Therefore, they can undergo a rigorous review before merging to the master branch. In this article, we go through the idea of migrations and learn how to perform them with TypeORM.
+
+## Read More
+
+- [Database migrations with TypeORM](https://wanago.io/2022/07/25/api-nestjs-database-migrations-typeorm/)
+- [Migrations Over Synchronize in TypeORM](https://medium.com/swlh/migrations-over-synchronize-in-typeorm-2c66bc008e74)
+
+![Synchronize](pics/migration-1.png)
+![Synchronize](pics/migration-2.png)
+
+## Creating and Running Migrations During Development.
+
+![Synchronize](pics/migration-3.png)
+![Synchronize](pics/migration-4.png)
+![Synchronize](pics/migration-5.png)
+
+### Read [TypeORM Config Docs](https://typeorm.biunav.com/en/using-ormconfig.html#using-ormconfig-json)
+
+## Prepare our app for migrations:
+
+> 1- Create in root directory a new folder 'db' and create in it a new file 'data-source.ts'
+
+```ts
+import { DataSource, DataSourceOptions } from 'typeorm';
+
+export const dataSourceOptions: DataSourceOptions = {
+  type: 'sqlite',
+  database: 'test.sqlite',
+  entities: ['dist/**/*.entity.js'],
+  migrations: ['dist/db/migrations/*.js'],
+};
+
+const dataSource = new DataSource(dataSourceOptions);
+export default dataSource;
+```
+
+> 2- in our 'app.module.ts' lets use our dataSourceOptions.
+
+```ts
+import { dataSourceOptions } from '../db/data-source';
+
+// Remove all stuff related to TypeOrmModule and put this new import
+
+@Module({
+    imports: [
+    ...,
+    TypeOrmModule.forRoot(dataSourceOptions),
+  ],
+});
+```
+
+> 3- To CREATE Migration: Put these scripts in 'package.json'
+
+```json
+  "scripts": {
+    "typeorm": "npm run build && npx typeorm -d dist/db/data-source.js",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert"
+  }
+```
+
+> 4- To Create a new Migration run this command:
+
+```bash
+$ npm run migration:generate -- db/migrations/newMigration
 ```

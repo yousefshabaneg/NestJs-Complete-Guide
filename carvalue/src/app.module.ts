@@ -5,10 +5,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ReportsModule } from './reports/reports.module';
 import { UsersModule } from './users/users.module';
-import { User } from './users/user.entity';
-import { Report } from './reports/report.entity';
 import cookieSession = require('cookie-session');
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { dataSourceOptions } from '../db/data-source';
 
 @Module({
   imports: [
@@ -16,22 +15,17 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV}`,
     }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        return {
-          type: 'sqlite',
-          database: config.get<string>('DB_NAME'),
-          entities: [User, Report],
-          synchronize: true,
-        };
-      },
-    }),
-    // TypeOrmModule.forRoot({
-    //   type: 'sqlite',
-    //   database: process.env.NODE_ENV === 'test' ? 'test.sqlite' : 'db.sqlite',
-    //   entities: [User, Report],
-    //   synchronize: true,
+    TypeOrmModule.forRoot(dataSourceOptions),
+    // TypeOrmModule.forRootAsync({
+    //   inject: [ConfigService],
+    //   useFactory: (config: ConfigService) => {
+    //     return {
+    //       type: 'sqlite',
+    //       database: config.get<string>('DB_NAME'),
+    //       entities: [User, Report],
+    //       synchronize: true,
+    //     };
+    //   },
     // }),
     UsersModule,
     ReportsModule,
@@ -46,7 +40,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   ],
 })
 export class AppModule {
+  constructor(private configService: ConfigService) {}
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(cookieSession({ keys: ['secret-key'] })).forRoutes('*');
+    consumer
+      .apply(cookieSession({ keys: [this.configService.get('COOKIE_KEY')] }))
+      .forRoutes('*');
   }
 }

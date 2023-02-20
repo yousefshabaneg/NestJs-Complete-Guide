@@ -1,6 +1,6 @@
+import dataSource from '../db/data-source';
 import { rm } from 'fs/promises';
 import { join } from 'path';
-import { getConnection } from 'typeorm';
 
 global.beforeEach(async () => {
   try {
@@ -9,8 +9,7 @@ global.beforeEach(async () => {
 });
 
 global.afterEach(async () => {
-  const conn = getConnection();
-  await conn.close();
+  await dataSource.destroy();
 });
 
 // appDataSource.initialize();
