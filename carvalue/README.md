@@ -1,6 +1,22 @@
+### Table of Contents
+
+| No. | Section                                                                                   |
+| --- | ----------------------------------------------------------------------------------------- |
+| 7   | [Car Value Project](#section-7-car-value-project)                                         |
+| 8-9 | [Persisting Data with TypeORM in Nest](#section-8-9-persisting-data-with-typeorm-in-nest) |
+| 10  | [Custom Data Serialization](#section-10---custom-data-serialization)                      |
+| 11  | [Authentication From Scratch](#section-11-authentication-from-scratch)                    |
+| 12  | [Unit Testing](#section-12-unit-testing)                                                  |
+| 13  | [Integration Testing](#section-13-integration-testing)                                    |
+| 14  | [Managing App Configuration](#section-14-managing-app-configuration)                      |
+| 15  | [Relations with TypeORM](#section-15-relations-with-typeorm)                              |
+| 16  | [A Basic Permissions System](#section-16-a-basic-permissions-system)                      |
+
+---
+
 # `Section-7: Car Value Project`
 
-# Project Structure
+## Project Structure
 
 ![Structure](pics/structure-1.png)
 ![Structure](pics/structure-2.png)
